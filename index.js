@@ -4,6 +4,7 @@ const config = require("config");
 
 const app = express();
 
+require("express-async-errors");
 require("./startup/db")();
 require("./startup/routes")(app);
 
