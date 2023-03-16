@@ -27,21 +27,21 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-    const error = userLoginValidate(req.body);
-    if (error) return res.status(400).send(error.details[0].message);
-  
-    const user = await userModel
-      .findOne({ email: req.body.email })
-      .select("_id password name");
-    if (!user) return res.status(400).send("invalid email or password");
-    const isPasswordCorrect = await bcrypt.compare(
-      req.body.password,
-      user.password
-    );
-    if (!isPasswordCorrect)
-      return res.status(400).send("invalid email or password");
-    const token = user.generateAuthToken();
-    res.header("x-auth-token", token).send("login successful");
-  });
+  const error = userLoginValidate(req.body);
+  if (error) return res.status(400).send(error.details[0].message);
+
+  const user = await userModel
+    .findOne({ email: req.body.email })
+    .select("_id password name");
+  if (!user) return res.status(400).send("invalid email or password");
+  const isPasswordCorrect = await bcrypt.compare(
+    req.body.password,
+    user.password
+  );
+  if (!isPasswordCorrect)
+    return res.status(400).send("invalid email or password");
+  const token = user.generateAuthToken();
+  res.header("x-auth-token", token).send("login successful");
+});
 
 module.exports = router;
