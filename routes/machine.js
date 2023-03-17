@@ -7,6 +7,7 @@ const { machineModel, machineValidate } = require("../models/machine");
 const { userModel } = require("../models/user");
 const { productKeyModel } = require("../models/productKey");
 const auth = require("../middleware/auth");
+const validateObjId = require("../middleware/validateObjId");
 
 router.post("/register", auth, async (req, res) => {
   const user = await userModel.findById(req.data._id);
@@ -31,6 +32,36 @@ router.post("/register", auth, async (req, res) => {
   res.send(
     _.pick(newMachine, ["productKey", "address", "thresholdMoisture", "_id"])
   );
+});
+
+router.delete("/delete/:id", [auth, validateObjId], async (req, res) => {
+  const user = await userModel.findById(req.data._id);
+  if (!user) return res.status(400).send("Invalid User");
+
+  const mod = await userModel.updateOne(
+    { _id: req.data._id },
+    {
+      $pull: {
+        machines: req.params.id,
+      },
+    }
+  );
+  if (mod.modifiedCount === 1) {
+    const mac = await machineModel.findById(req.params.id).select("productKey");
+    if (mac) {
+      const prod = await productKeyModel.findOne({
+        productKey: mac.productKey,
+      });
+      if (prod) {
+        prod.isRegistered = false;
+        await prod.save();
+      }
+    }
+
+    await machineModel.deleteOne({ _id: req.params.id });
+    return res.send("deleted successfully");
+  }
+  res.status(404).send();
 });
 
 module.exports = router;
