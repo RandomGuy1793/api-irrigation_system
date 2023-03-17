@@ -5,8 +5,9 @@ const _ = require("lodash");
 const machineSchema = new mongoose.Schema({
   productKey: {
     type: String,
-    length: 25,
+    length: 15,
     required: true,
+    unique: true,
   },
   address: {
     type: String,
@@ -82,8 +83,16 @@ const machineSchema = new mongoose.Schema({
   ],
 });
 
-machineSchema.statics.register = async function () {
+machineSchema.statics.register = async function (details, propertiesToPick) {
   const newMachine = new this(_.pick(details, propertiesToPick));
+  newMachine.soilMoisture = [];
+  for (let i = 0; i < 4; i++) {
+    newMachine.soilMoisture.push({});
+  }
+  newMachine.thresholdMoisture = 50;
+  newMachine.WaterTankLog = [];
+  newMachine.motorLog = [];
+  newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
 };
@@ -92,12 +101,11 @@ const machine = mongoose.model("machine", machineSchema);
 
 function validateMachine(mac) {
   const macSchema = Joi.object({
-    userId: Joi.objectId().required(),
-    productKey: Joi.string().trim().length(25).required(),
+    productKey: Joi.string().trim().length(15).required(),
     address: Joi.string().trim().min(10).max(100).required(),
   });
-  return macSchema.validate(sub).error;
+  return macSchema.validate(mac).error;
 }
 
-exports.machine = machine;
-exports.validateMachine = validateMachine;
+exports.machineModel = machine;
+exports.machineValidate = validateMachine;

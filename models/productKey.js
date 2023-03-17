@@ -5,13 +5,14 @@ const productKeySchema = new mongoose.Schema({
     type: String,
     length: 15,
     required: true,
+    unique: true,
   },
   isRegistered: {
     type: Boolean,
-    default:false
+    default: false,
   },
 });
 
-const productKey = mongoose.model("productKey", productKeySchema);
+const productKey = mongoose.model("productkeys", productKeySchema);
 
-exports.productKey=productKey
+exports.productKeyModel = productKey;

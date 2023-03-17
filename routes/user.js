@@ -11,7 +11,7 @@ const {
 } = require("../models/user");
 
 router.post("/register", async (req, res) => {
-  const error = userValidate(req.body, true);
+  const error = userValidate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
   const user = await userModel.findOne({ email: req.body.email }).select("_id");
