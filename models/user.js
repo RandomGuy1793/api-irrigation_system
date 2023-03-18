@@ -44,6 +44,15 @@ userSchema.statics.register = async function (details, propertiesToPick) {
 
 const user = mongoose.model("user", userSchema);
 
+const MachineBelongsToUser = async (userId, machineId) => {
+  const userFind = await user.findById(userId).select("_id, machines");
+  if (!userFind) return false;
+  for (let item of userFind.machines) {
+    if (item.equals(machineId)) return true;
+  }
+  return false;
+};
+
 const loginValidate = (customer) => {
   const schema = Joi.object({
     email: Joi.string().trim().email().min(3).max(50).required(),
@@ -64,3 +73,4 @@ const userValidate = (customer) => {
 exports.userModel = user;
 exports.userLoginValidate = loginValidate;
 exports.userValidate = userValidate;
+exports.MachineBelongsToUser = MachineBelongsToUser;

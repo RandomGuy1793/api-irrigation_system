@@ -99,6 +99,31 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
 
 const machine = mongoose.model("machine", machineSchema);
 
+const updateMotorBasedOnThreshold = async (threshold, id) => {
+  const mach = await machine.findById(id).select("soilMoisture");
+  for (let i = 0; i < 4; i++) {
+    mach.soilMoisture[i].value < threshold
+      ? (mach.soilMoisture[i].isMotorOn = true)
+      : (mach.soilMoisture[i].isMotorOn = false);
+  }
+  await mach.save();
+};
+
+function validateMotorThreshold(details, isAutoMode) {
+  if (isAutoMode) {
+    return Joi.object({
+      thresholdMoisture: Joi.number().min(0).max(100),
+    }).validate(details).error;
+  }
+  const motorSchema = Joi.object({
+    motor0On: Joi.boolean().required(),
+    motor1On: Joi.boolean().required(),
+    motor2On: Joi.boolean().required(),
+    motor3On: Joi.boolean().required(),
+  });
+  return motorSchema.validate(details).error;
+}
+
 function validateMachine(mac) {
   const macSchema = Joi.object({
     productKey: Joi.string().trim().length(15).required(),
@@ -109,3 +134,5 @@ function validateMachine(mac) {
 
 exports.machineModel = machine;
 exports.machineValidate = validateMachine;
+exports.validateMotorThreshold = validateMotorThreshold;
+exports.updateMotorBasedOnThreshold = updateMotorBasedOnThreshold;
