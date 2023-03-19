@@ -8,11 +8,13 @@ const {
   machineValidate,
   validateMotorThreshold,
   updateMotorBasedOnThreshold,
+  validateWaterLevel,
 } = require("../models/machine");
 const { userModel, MachineBelongsToUser } = require("../models/user");
 const { productKeyModel } = require("../models/productKey");
 const auth = require("../middleware/auth");
 const validateObjId = require("../middleware/validateObjId");
+const machineAuth = require("../middleware/machineAuth");
 
 router.post("/register", auth, async (req, res) => {
   const user = await userModel.findById(req.data._id);
@@ -22,7 +24,7 @@ router.post("/register", auth, async (req, res) => {
 
   const prodKey = await productKeyModel
     .findOne({ productKey: req.body.productKey })
-    .select("productKey, isRegistered");
+    .select("productKey isRegistered");
   if (!prodKey || prodKey.isRegistered === true)
     return res.status(404).send("Machine not valid");
   prodKey.isRegistered = true;
@@ -101,6 +103,8 @@ router.put(
 
     machine.thresholdMoisture = req.body.thresholdMoisture;
     await machine.save();
+    if (machine.waterTankLog[machine.waterTankLog.length - 1].waterLevel <= 10)
+      return res.send("threshold updated.\nmotors off due to low tank water");
     await updateMotorBasedOnThreshold(
       req.body.thresholdMoisture,
       req.params.id
@@ -127,14 +131,49 @@ router.put(
     if (error) return res.status(400).send(error.details[0].message);
 
     machine.thresholdMoisture = -1;
+    if (
+      machine.waterTankLog[machine.waterTankLog.length - 1].waterLevel <= 10
+    ) {
+      await machine.save();
+      return res.status(403).send("can't turn on motor.\nTank water low");
+    }
     machine.soilMoisture[0].isMotorOn = req.body.motor0On;
     machine.soilMoisture[1].isMotorOn = req.body.motor1On;
     machine.soilMoisture[2].isMotorOn = req.body.motor2On;
     machine.soilMoisture[3].isMotorOn = req.body.motor3On;
     await machine.save();
-
     res.send("motors updated successfully");
   }
 );
+
+router.get("/iot/motor-status", machineAuth, async (req, res) => {
+  const mach = await machineModel
+    .findOne({ productKey: req.body.productKey })
+    .select("soilMoisture");
+  if (!mach) return res.status(404).send("machine unavailable");
+  res.send(mach.soilMoisture.map((item) => _.pick(item, ["isMotorOn"])));
+});
+
+router.post("/iot/tank-level", machineAuth, async (req, res) => {
+  const err = validateWaterLevel({ waterLevel: req.body.waterLevel });
+  if (err) return res.status(400).send(err.details[0].message);
+
+  const mach = await machineModel
+    .findOne({ productKey: req.body.productKey })
+    .select("waterTankLog soilMoisture thresholdMoisture _id");
+  if (!mach) return res.status(404).send("machine unavailable");
+  mach.waterTankLog.push({ waterLevel: req.body.waterLevel });
+
+  if (req.body.waterLevel <= 10) {
+    mach.soilMoisture.map((item) => {
+      item.isMotorOn = false;
+      return item;
+    });
+  } else if (req.body.waterLevel > 10 && mach.thresholdMoisture >= 0) {
+    await updateMotorBasedOnThreshold(mach.thresholdMoisture, mach._id);
+  }
+  await mach.save();
+  res.send("tank water level received successfully");
+});
 
 module.exports = router;

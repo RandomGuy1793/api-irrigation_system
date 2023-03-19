@@ -39,7 +39,7 @@ const machineSchema = new mongoose.Schema({
     default: 50,
     required: true,
   },
-  WaterTankLog: [
+  waterTankLog: [
     {
       type: new mongoose.Schema(
         {
@@ -124,6 +124,12 @@ function validateMotorThreshold(details, isAutoMode) {
   return motorSchema.validate(details).error;
 }
 
+function validateWaterLevel(details) {
+  return Joi.object({
+    waterLevel: Joi.number().min(0).max(100).required(),
+  }).validate(details).error;
+}
+
 function validateMachine(mac) {
   const macSchema = Joi.object({
     productKey: Joi.string().trim().length(15).required(),
@@ -136,3 +142,4 @@ exports.machineModel = machine;
 exports.machineValidate = validateMachine;
 exports.validateMotorThreshold = validateMotorThreshold;
 exports.updateMotorBasedOnThreshold = updateMotorBasedOnThreshold;
+exports.validateWaterLevel = validateWaterLevel;
