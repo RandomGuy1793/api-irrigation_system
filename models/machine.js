@@ -59,8 +59,9 @@ const machineSchema = new mongoose.Schema({
         type: new mongoose.Schema(
           {
             isMotorOn: Boolean,
+            createdAt: Date,
           },
-          { timestamps: true }
+          { _id: false }
         ),
       },
     ],
@@ -75,8 +76,9 @@ const machineSchema = new mongoose.Schema({
               min: 0,
               max: 100,
             },
+            createdAt: Date,
           },
-          { timestamps: true }
+          { _id: false }
         ),
       },
     ],
@@ -91,8 +93,8 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
   }
   newMachine.thresholdMoisture = 50;
   newMachine.WaterTankLog = [];
-  newMachine.motorLog = [];
-  newMachine.soilMoistureLog = [];
+  newMachine.motorLog = [[], [], [], []];
+  newMachine.soilMoistureLog = [[], [], [], []];
   await newMachine.save();
   return newMachine;
 };
@@ -130,6 +132,15 @@ function validateWaterLevel(details) {
   }).validate(details).error;
 }
 
+function validateSoilMoisture(details) {
+  return Joi.object({
+    soilMoisture0: Joi.number().min(0).max(100).required(),
+    soilMoisture1: Joi.number().min(0).max(100).required(),
+    soilMoisture2: Joi.number().min(0).max(100).required(),
+    soilMoisture3: Joi.number().min(0).max(100).required(),
+  }).validate(details).error;
+}
+
 function validateMachine(mac) {
   const macSchema = Joi.object({
     productKey: Joi.string().trim().length(15).required(),
@@ -143,3 +154,4 @@ exports.machineValidate = validateMachine;
 exports.validateMotorThreshold = validateMotorThreshold;
 exports.updateMotorBasedOnThreshold = updateMotorBasedOnThreshold;
 exports.validateWaterLevel = validateWaterLevel;
+exports.validateSoilMoisture = validateSoilMoisture;

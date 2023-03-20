@@ -9,6 +9,7 @@ const {
   validateMotorThreshold,
   updateMotorBasedOnThreshold,
   validateWaterLevel,
+  validateSoilMoisture,
 } = require("../models/machine");
 const { userModel, MachineBelongsToUser } = require("../models/user");
 const { productKeyModel } = require("../models/productKey");
@@ -103,7 +104,10 @@ router.put(
 
     machine.thresholdMoisture = req.body.thresholdMoisture;
     await machine.save();
-    if (machine.waterTankLog[machine.waterTankLog.length - 1].waterLevel <= 10)
+    if (
+      machine.waterTankLog.length > 0 &&
+      machine.waterTankLog[machine.waterTankLog.length - 1].waterLevel <= 10
+    )
       return res.send("threshold updated.\nmotors off due to low tank water");
     await updateMotorBasedOnThreshold(
       req.body.thresholdMoisture,
@@ -132,6 +136,7 @@ router.put(
 
     machine.thresholdMoisture = -1;
     if (
+      machine.waterTankLog.length > 0 &&
       machine.waterTankLog[machine.waterTankLog.length - 1].waterLevel <= 10
     ) {
       await machine.save();
@@ -174,6 +179,43 @@ router.post("/iot/tank-level", machineAuth, async (req, res) => {
   }
   await mach.save();
   res.send("tank water level received successfully");
+});
+
+router.post("/iot/soil-moisture", machineAuth, async (req, res) => {
+  const err = await validateSoilMoisture(
+    _.pick(req.body, [
+      "soilMoisture0",
+      "soilMoisture1",
+      "soilMoisture2",
+      "soilMoisture3",
+    ])
+  );
+  if (err) return res.status(400).send(err.details[0].message);
+
+  const mach = await machineModel
+    .findOne({ productKey: req.body.productKey })
+    .select("soilMoisture soilMoistureLog thresholdMoisture waterTankLog _id");
+  if (!mach) return res.status(404).send("machine unavailable");
+
+  mach.soilMoisture[0].value = req.body.soilMoisture0;
+  mach.soilMoisture[1].value = req.body.soilMoisture1;
+  mach.soilMoisture[2].value = req.body.soilMoisture2;
+  mach.soilMoisture[3].value = req.body.soilMoisture3;
+  for (let i = 0; i < 4; i++) {
+    mach.soilMoistureLog[i].push({
+      moistureLevel: mach.soilMoisture[i].value,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  await mach.save();
+  if (
+    mach.waterTankLog.length > 0 &&
+    mach.waterTankLog[mach.waterTankLog.length - 1].waterLevel > 10 &&
+    mach.thresholdMoisture >= 0
+  ) {
+    await updateMotorBasedOnThreshold(mach.thresholdMoisture, mach._id);
+  }
+  res.send("soil moisture logged successfully");
 });
 
 module.exports = router;
