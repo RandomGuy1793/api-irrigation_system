@@ -151,7 +151,7 @@ router.put(
   }
 );
 
-router.get("/iot/motor-status", machineAuth, async (req, res) => {
+router.get("/iot/get-motor-status", machineAuth, async (req, res) => {
   const mach = await machineModel
     .findOne({ productKey: req.body.productKey })
     .select("soilMoisture");
@@ -216,6 +216,39 @@ router.post("/iot/soil-moisture", machineAuth, async (req, res) => {
     await updateMotorBasedOnThreshold(mach.thresholdMoisture, mach._id);
   }
   res.send("soil moisture logged successfully");
+});
+
+router.post("/iot/send-motor-status", machineAuth, async (req, res) => {
+  const err = validateMotorThreshold(
+    _.pick(req.body, ["motor0On", "motor1On", "motor2On", "motor3On"]),
+    false
+  );
+  if (err) return res.status(400).send(err.details[0].message);
+
+  const mach = await machineModel
+    .findOne({ productKey: req.body.productKey })
+    .select("motorLog");
+  if (!mach) return res.status(404).send("machine unavailable");
+  for (let i = 0; i < 4; i++) {
+    if (mach.motorLog[i].length === 0) {
+      if (req.body[`motor${i}On`] === true) {
+        mach.motorLog[i].push({
+          isMotorOn: req.body[`motor${i}On`],
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } else if (
+      mach.motorLog[i][mach.motorLog[i].length - 1].isMotorOn !==
+      req.body[`motor${i}On`]
+    ) {
+      mach.motorLog[i].push({
+        isMotorOn: req.body[`motor${i}On`],
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  await mach.save();
+  res.send("motor status logged successfully");
 });
 
 module.exports = router;
