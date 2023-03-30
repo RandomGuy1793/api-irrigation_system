@@ -17,6 +17,8 @@ const auth = require("../middleware/auth");
 const validateObjId = require("../middleware/validateObjId");
 const machineAuth = require("../middleware/machineAuth");
 
+const logDiff = 3e5;    // time diff.in millis
+
 router.post("/register", auth, async (req, res) => {
   const user = await userModel.findById(req.data._id);
   if (!user) return res.status(400).send("User not available.");
@@ -165,9 +167,18 @@ router.post("/iot/tank-level", machineAuth, async (req, res) => {
 
   const mach = await machineModel
     .findOne({ productKey: req.body.productKey })
-    .select("waterTankLog soilMoisture thresholdMoisture _id");
+    .select("waterTankLog waterTankLevel soilMoisture thresholdMoisture _id");
   if (!mach) return res.status(404).send("machine unavailable");
-  mach.waterTankLog.push({ waterLevel: req.body.waterLevel });
+
+  mach.waterTankLevel = req.body.waterLevel;
+  const len = mach.waterTankLog.length;
+  if (len > 0) {
+    const d1 = new Date(mach.waterTankLog[len - 1].createdAt),
+      d2 = new Date();
+    const diff = d2.valueOf() - d1.valueOf();
+    if (diff > logDiff)
+      mach.waterTankLog.push({ waterLevel: req.body.waterLevel });
+  } else mach.waterTankLog.push({ waterLevel: req.body.waterLevel });
 
   if (req.body.waterLevel <= 10) {
     mach.soilMoisture.map((item) => {
@@ -194,18 +205,34 @@ router.post("/iot/soil-moisture", machineAuth, async (req, res) => {
 
   const mach = await machineModel
     .findOne({ productKey: req.body.productKey })
-    .select("soilMoisture soilMoistureLog thresholdMoisture waterTankLog _id");
+    .select(
+      "soilMoisture soilMoistureLog thresholdMoisture waterTankLevel _id"
+    );
   if (!mach) return res.status(404).send("machine unavailable");
 
   mach.soilMoisture[0].value = req.body.soilMoisture0;
   mach.soilMoisture[1].value = req.body.soilMoisture1;
   mach.soilMoisture[2].value = req.body.soilMoisture2;
   mach.soilMoisture[3].value = req.body.soilMoisture3;
+
   for (let i = 0; i < 4; i++) {
-    mach.soilMoistureLog[i].push({
-      moistureLevel: mach.soilMoisture[i].value,
-      createdAt: new Date().toISOString(),
-    });
+    const len = mach.soilMoistureLog[i].length;
+    if (len > 0) {
+      const d1 = new Date(mach.soilMoistureLog[i][len - 1].createdAt),
+        d2 = new Date();
+      const diff = d2 - d1;
+      if (diff > logDiff) {
+        mach.soilMoistureLog[i].push({
+          moistureLevel: mach.soilMoisture[i].value,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } else {
+      mach.soilMoistureLog[i].push({
+        moistureLevel: mach.soilMoisture[i].value,
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
   await mach.save();
   if (mach.waterTankLevel > 10 && mach.thresholdMoisture >= 0) {
