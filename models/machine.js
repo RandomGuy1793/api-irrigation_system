@@ -3,6 +3,12 @@ const Joi = require("joi");
 const _ = require("lodash");
 
 const machineSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    minlength: 1,
+    maxlength: 20,
+    required: true,
+  },
   productKey: {
     type: String,
     length: 15,
@@ -35,6 +41,13 @@ const machineSchema = new mongoose.Schema({
   thresholdMoisture: {
     type: Number,
     min: -1,
+    max: 100,
+    default: 50,
+    required: true,
+  },
+  waterTankLevel: {
+    type: Number,
+    min: 0,
     max: 100,
     default: 50,
     required: true,
@@ -92,6 +105,7 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
     newMachine.soilMoisture.push({});
   }
   newMachine.thresholdMoisture = 50;
+  newMachine.waterTankLevel = 50;
   newMachine.WaterTankLog = [];
   newMachine.motorLog = [[], [], [], []];
   newMachine.soilMoistureLog = [[], [], [], []];
@@ -143,6 +157,7 @@ function validateSoilMoisture(details) {
 
 function validateMachine(mac) {
   const macSchema = Joi.object({
+    name: Joi.string().trim().min(1).max(20).required(),
     productKey: Joi.string().trim().length(15).required(),
     address: Joi.string().trim().min(10).max(100).required(),
   });
