@@ -140,18 +140,17 @@ function validateMotorThreshold(details, isAutoMode) {
   return motorSchema.validate(details).error;
 }
 
-function validateWaterLevel(details) {
+function validateIotData(details) {
   return Joi.object({
     waterLevel: Joi.number().min(0).max(100).required(),
-  }).validate(details).error;
-}
-
-function validateSoilMoisture(details) {
-  return Joi.object({
     soilMoisture0: Joi.number().min(0).max(100).required(),
     soilMoisture1: Joi.number().min(0).max(100).required(),
     soilMoisture2: Joi.number().min(0).max(100).required(),
     soilMoisture3: Joi.number().min(0).max(100).required(),
+    motor0On: Joi.boolean().required(),
+    motor1On: Joi.boolean().required(),
+    motor2On: Joi.boolean().required(),
+    motor3On: Joi.boolean().required(),
   }).validate(details).error;
 }
 
@@ -168,5 +167,4 @@ exports.machineModel = machine;
 exports.machineValidate = validateMachine;
 exports.validateMotorThreshold = validateMotorThreshold;
 exports.updateMotorBasedOnThreshold = updateMotorBasedOnThreshold;
-exports.validateWaterLevel = validateWaterLevel;
-exports.validateSoilMoisture = validateSoilMoisture;
+exports.validateIotData = validateIotData;
