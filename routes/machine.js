@@ -78,7 +78,7 @@ router.delete("/delete/:id", [auth, validateObjId], async (req, res) => {
   res.status(404).send();
 });
 
-router.get("/motor-threshold/:id", [auth, validateObjId], async (req, res) => {
+router.get("/:id", [auth, validateObjId], async (req, res) => {
   const isUserAuthorized = await MachineBelongsToUser(
     req.data._id,
     req.params.id
@@ -89,7 +89,7 @@ router.get("/motor-threshold/:id", [auth, validateObjId], async (req, res) => {
   const machine = await machineModel.findById(req.params.id);
   if (!machine) return res.status(404).send("machine unavailable");
 
-  res.send(_.pick(machine, ["thresholdMoisture", "soilMoisture"]));
+  res.send(_.pick(machine, ["name", "address", "waterTankLevel","thresholdMoisture", "soilMoisture"]));
 });
 
 router.put(

@@ -9,6 +9,8 @@ const {
   userLoginValidate,
   userValidate,
 } = require("../models/user");
+const { machineModel } = require("../models/machine");
+const auth = require("../middleware/auth");
 
 router.post("/register", async (req, res) => {
   const error = userValidate(req.body);
@@ -42,6 +44,21 @@ router.post("/login", async (req, res) => {
     return res.status(400).send("invalid email or password");
   const token = user.generateAuthToken();
   res.header("x-auth-token", token).send("login successful");
+});
+
+router.get("/", auth, async (req, res) => {
+  const user = await userModel.findById(req.data._id).select("name machines");
+  if (!user) return res.status(400).send("invalid user");
+  const resObj = { name: user.name, machines: [] };
+  for (let i = 0; i < user.machines.length; i++) {
+    const mach = await machineModel
+      .findById(user.machines[i])
+      .select("name address _id");
+    if (mach) {
+      resObj.machines.push(mach);
+    }
+  }
+  res.send(resObj);
 });
 
 module.exports = router;
