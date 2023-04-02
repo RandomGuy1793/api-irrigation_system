@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const Joi = require("joi");
 const _ = require("lodash");
 
+const logDiff = 3e5; // time diff.in millis
+
 const machineSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -92,6 +94,57 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
   newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
+};
+
+machineSchema.methods.updateWaterTank = function (details) {
+  this.waterTankLevel = details.waterLevel;
+  const len = this.waterTankLog.length;
+  if (len > 0) {
+    const d1 = new Date(this.waterTankLog[len - 1].createdAt),
+      d2 = new Date();
+    const diff = d2.valueOf() - d1.valueOf();
+    if (diff > logDiff)
+      this.waterTankLog.push({ waterLevel: details.waterLevel });
+  } else this.waterTankLog.push({ waterLevel: details.waterLevel });
+};
+
+machineSchema.methods.updateSoilMoisture = function (details) {
+  this.soilMoisture = details.soilMoisture;
+  const len = this.soilMoistureLog.length;
+  if (len > 0) {
+    const d1 = new Date(this.soilMoistureLog[len - 1].createdAt),
+      d2 = new Date();
+    const diff = d2 - d1;
+    if (diff > logDiff) {
+      this.soilMoistureLog.push({
+        moistureLevel: this.soilMoisture,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  } else {
+    this.soilMoistureLog.push({
+      moistureLevel: this.soilMoisture,
+      createdAt: new Date().toISOString(),
+    });
+  }
+};
+
+machineSchema.methods.updateMotorLog = function (details) {
+  if (this.motorLog.length === 0) {
+    if (details[`motorOn`] === true) {
+      this.motorLog.push({
+        isMotorOn: details[`motorOn`],
+        createdAt: new Date().toISOString(),
+      });
+    }
+  } else if (
+    this.motorLog[this.motorLog.length - 1].isMotorOn !== details[`motorOn`]
+  ) {
+    this.motorLog.push({
+      isMotorOn: details[`motorOn`],
+      createdAt: new Date().toISOString(),
+    });
+  }
 };
 
 const machine = mongoose.model("machine", machineSchema);

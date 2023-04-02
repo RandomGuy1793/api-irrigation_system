@@ -16,8 +16,6 @@ const auth = require("../middleware/auth");
 const validateObjId = require("../middleware/validateObjId");
 const machineAuth = require("../middleware/machineAuth");
 
-const logDiff = 3e5; // time diff.in millis
-
 router.post("/register", auth, async (req, res) => {
   const user = await userModel.findById(req.data._id);
   if (!user) return res.status(400).send("User not available.");
@@ -174,9 +172,9 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
 
   const mach = await machineModel.findOne({ productKey: req.body.productKey });
   if (!mach) return res.status(404).send("machine unavailable");
-  updateWaterTank(req.body, mach);
-  updateSoilMoisture(req.body, mach);
-  updateMotorLog(req.body, mach);
+  mach.updateWaterTank(req.body);
+  mach.updateSoilMoisture(req.body);
+  mach.updateMotorLog(req.body);
 
   if (req.body.waterLevel <= 10) {
     mach.isMotorOn = false;
@@ -187,56 +185,5 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
   } else await mach.save();
   res.send("water level, soil moisture and motor status received successfully");
 });
-
-const updateWaterTank = (details, mach) => {
-  mach.waterTankLevel = details.waterLevel;
-  const len = mach.waterTankLog.length;
-  if (len > 0) {
-    const d1 = new Date(mach.waterTankLog[len - 1].createdAt),
-      d2 = new Date();
-    const diff = d2.valueOf() - d1.valueOf();
-    if (diff > logDiff)
-      mach.waterTankLog.push({ waterLevel: details.waterLevel });
-  } else mach.waterTankLog.push({ waterLevel: details.waterLevel });
-};
-
-const updateSoilMoisture = (details, mach) => {
-  mach.soilMoisture = details.soilMoisture;
-  const len = mach.soilMoistureLog.length;
-  if (len > 0) {
-    const d1 = new Date(mach.soilMoistureLog[len - 1].createdAt),
-      d2 = new Date();
-    const diff = d2 - d1;
-    if (diff > logDiff) {
-      mach.soilMoistureLog.push({
-        moistureLevel: mach.soilMoisture,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  } else {
-    mach.soilMoistureLog.push({
-      moistureLevel: mach.soilMoisture,
-      createdAt: new Date().toISOString(),
-    });
-  }
-};
-
-const updateMotorLog = (details, mach) => {
-  if (mach.motorLog.length === 0) {
-    if (details[`motorOn`] === true) {
-      mach.motorLog.push({
-        isMotorOn: details[`motorOn`],
-        createdAt: new Date().toISOString(),
-      });
-    }
-  } else if (
-    mach.motorLog[mach.motorLog.length - 1].isMotorOn !== details[`motorOn`]
-  ) {
-    mach.motorLog.push({
-      isMotorOn: details[`motorOn`],
-      createdAt: new Date().toISOString(),
-    });
-  }
-};
 
 module.exports = router;
