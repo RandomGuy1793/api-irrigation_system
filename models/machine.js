@@ -21,36 +21,27 @@ const machineSchema = new mongoose.Schema({
     maxlength: 100,
     required: true,
   },
-  soilMoisture: [
-    // array of size 4 with smvalue
-    {
-      value: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 50,
-        required: true,
-      },
-      isMotorOn: {
-        type: Boolean,
-        default: false,
-        required: true,
-      },
-    },
-  ],
+  soilMoisture: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 50,
+  },
+  isMotorOn: {
+    type: Boolean,
+    default: false,
+  },
   thresholdMoisture: {
     type: Number,
     min: -1,
     max: 100,
     default: 50,
-    required: true,
   },
   waterTankLevel: {
     type: Number,
     min: 0,
     max: 100,
     default: 50,
-    required: true,
   },
   waterTankLog: [
     {
@@ -67,48 +58,38 @@ const machineSchema = new mongoose.Schema({
     },
   ],
   motorLog: [
-    [
-      {
-        type: new mongoose.Schema(
-          {
-            isMotorOn: Boolean,
-            createdAt: Date,
-          },
-          { _id: false }
-        ),
-      },
-    ],
+    {
+      type: new mongoose.Schema(
+        {
+          isMotorOn: Boolean,
+          createdAt: Date,
+        },
+        { _id: false }
+      ),
+    },
   ],
   soilMoistureLog: [
-    [
-      {
-        type: new mongoose.Schema(
-          {
-            moistureLevel: {
-              type: Number,
-              min: 0,
-              max: 100,
-            },
-            createdAt: Date,
+    {
+      type: new mongoose.Schema(
+        {
+          moistureLevel: {
+            type: Number,
+            min: 0,
+            max: 100,
           },
-          { _id: false }
-        ),
-      },
-    ],
+          createdAt: Date,
+        },
+        { _id: false }
+      ),
+    },
   ],
 });
 
 machineSchema.statics.register = async function (details, propertiesToPick) {
   const newMachine = new this(_.pick(details, propertiesToPick));
-  newMachine.soilMoisture = [];
-  for (let i = 0; i < 4; i++) {
-    newMachine.soilMoisture.push({});
-  }
-  newMachine.thresholdMoisture = 50;
-  newMachine.waterTankLevel = 50;
   newMachine.WaterTankLog = [];
-  newMachine.motorLog = [[], [], [], []];
-  newMachine.soilMoistureLog = [[], [], [], []];
+  newMachine.motorLog = [];
+  newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
 };
@@ -117,11 +98,7 @@ const machine = mongoose.model("machine", machineSchema);
 
 const updateMotorBasedOnThreshold = async (threshold, id) => {
   const mach = await machine.findById(id).select("soilMoisture");
-  for (let i = 0; i < 4; i++) {
-    mach.soilMoisture[i].value < threshold
-      ? (mach.soilMoisture[i].isMotorOn = true)
-      : (mach.soilMoisture[i].isMotorOn = false);
-  }
+  mach.isMotorOn = mach.soilMoisture < threshold;
   await mach.save();
 };
 
@@ -132,10 +109,7 @@ function validateMotorThreshold(details, isAutoMode) {
     }).validate(details).error;
   }
   const motorSchema = Joi.object({
-    motor0On: Joi.boolean().required(),
-    motor1On: Joi.boolean().required(),
-    motor2On: Joi.boolean().required(),
-    motor3On: Joi.boolean().required(),
+    motorOn: Joi.boolean().required(),
   });
   return motorSchema.validate(details).error;
 }
@@ -143,14 +117,8 @@ function validateMotorThreshold(details, isAutoMode) {
 function validateIotData(details) {
   return Joi.object({
     waterLevel: Joi.number().min(0).max(100).required(),
-    soilMoisture0: Joi.number().min(0).max(100).required(),
-    soilMoisture1: Joi.number().min(0).max(100).required(),
-    soilMoisture2: Joi.number().min(0).max(100).required(),
-    soilMoisture3: Joi.number().min(0).max(100).required(),
-    motor0On: Joi.boolean().required(),
-    motor1On: Joi.boolean().required(),
-    motor2On: Joi.boolean().required(),
-    motor3On: Joi.boolean().required(),
+    soilMoisture: Joi.number().min(0).max(100).required(),
+    motorOn: Joi.boolean().required(),
   }).validate(details).error;
 }
 

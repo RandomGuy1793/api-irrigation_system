@@ -89,7 +89,16 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
   const machine = await machineModel.findById(req.params.id);
   if (!machine) return res.status(404).send("machine unavailable");
 
-  res.send(_.pick(machine, ["name", "address", "waterTankLevel","thresholdMoisture", "soilMoisture"]));
+  res.send(
+    _.pick(machine, [
+      "name",
+      "address",
+      "waterTankLevel",
+      "thresholdMoisture",
+      "soilMoisture",
+      "isMotorOn",
+    ])
+  );
 });
 
 router.put(
@@ -143,10 +152,7 @@ router.put(
       await machine.save();
       return res.status(403).send("can't turn on motor.\nTank water low");
     }
-    machine.soilMoisture[0].isMotorOn = req.body.motor0On;
-    machine.soilMoisture[1].isMotorOn = req.body.motor1On;
-    machine.soilMoisture[2].isMotorOn = req.body.motor2On;
-    machine.soilMoisture[3].isMotorOn = req.body.motor3On;
+    machine.isMotorOn = req.body.motorOn;
     await machine.save();
     res.send("motors updated successfully");
   }
@@ -155,24 +161,14 @@ router.put(
 router.get("/iot/get-motor-status", machineAuth, async (req, res) => {
   const mach = await machineModel
     .findOne({ productKey: req.body.productKey })
-    .select("soilMoisture");
+    .select("isMotorOn");
   if (!mach) return res.status(404).send("machine unavailable");
-  res.send(mach.soilMoisture.map((item) => _.pick(item, ["isMotorOn"])));
+  res.send({ isMotorOn: mach.isMotorOn });
 });
 
 router.post("/iot/send-data", machineAuth, async (req, res) => {
   const err = validateIotData(
-    _.pick(req.body, [
-      "waterLevel",
-      "soilMoisture0",
-      "soilMoisture1",
-      "soilMoisture2",
-      "soilMoisture3",
-      "motor0On",
-      "motor1On",
-      "motor2On",
-      "motor3On",
-    ])
+    _.pick(req.body, ["waterLevel", "soilMoisture", "motorOn"])
   );
   if (err) return res.status(400).send(err.details[0].message);
 
@@ -183,10 +179,7 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
   updateMotorLog(req.body, mach);
 
   if (req.body.waterLevel <= 10) {
-    mach.soilMoisture.map((item) => {
-      item.isMotorOn = false;
-      return item;
-    });
+    mach.isMotorOn = false;
     await mach.save();
   } else if (mach.thresholdMoisture >= 0) {
     await mach.save();
@@ -208,50 +201,41 @@ const updateWaterTank = (details, mach) => {
 };
 
 const updateSoilMoisture = (details, mach) => {
-  mach.soilMoisture[0].value = details.soilMoisture0;
-  mach.soilMoisture[1].value = details.soilMoisture1;
-  mach.soilMoisture[2].value = details.soilMoisture2;
-  mach.soilMoisture[3].value = details.soilMoisture3;
-
-  for (let i = 0; i < 4; i++) {
-    const len = mach.soilMoistureLog[i].length;
-    if (len > 0) {
-      const d1 = new Date(mach.soilMoistureLog[i][len - 1].createdAt),
-        d2 = new Date();
-      const diff = d2 - d1;
-      if (diff > logDiff) {
-        mach.soilMoistureLog[i].push({
-          moistureLevel: mach.soilMoisture[i].value,
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } else {
-      mach.soilMoistureLog[i].push({
-        moistureLevel: mach.soilMoisture[i].value,
+  mach.soilMoisture = details.soilMoisture;
+  const len = mach.soilMoistureLog.length;
+  if (len > 0) {
+    const d1 = new Date(mach.soilMoistureLog[len - 1].createdAt),
+      d2 = new Date();
+    const diff = d2 - d1;
+    if (diff > logDiff) {
+      mach.soilMoistureLog.push({
+        moistureLevel: mach.soilMoisture,
         createdAt: new Date().toISOString(),
       });
     }
+  } else {
+    mach.soilMoistureLog.push({
+      moistureLevel: mach.soilMoisture,
+      createdAt: new Date().toISOString(),
+    });
   }
 };
 
 const updateMotorLog = (details, mach) => {
-  for (let i = 0; i < 4; i++) {
-    if (mach.motorLog[i].length === 0) {
-      if (details[`motor${i}On`] === true) {
-        mach.motorLog[i].push({
-          isMotorOn: details[`motor${i}On`],
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } else if (
-      mach.motorLog[i][mach.motorLog[i].length - 1].isMotorOn !==
-      details[`motor${i}On`]
-    ) {
-      mach.motorLog[i].push({
-        isMotorOn: details[`motor${i}On`],
+  if (mach.motorLog.length === 0) {
+    if (details[`motorOn`] === true) {
+      mach.motorLog.push({
+        isMotorOn: details[`motorOn`],
         createdAt: new Date().toISOString(),
       });
     }
+  } else if (
+    mach.motorLog[mach.motorLog.length - 1].isMotorOn !== details[`motorOn`]
+  ) {
+    mach.motorLog.push({
+      isMotorOn: details[`motorOn`],
+      createdAt: new Date().toISOString(),
+    });
   }
 };
 
