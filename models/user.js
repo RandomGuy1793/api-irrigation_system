@@ -33,7 +33,9 @@ const userSchema = new mongoose.Schema({
 
 const jwtKey = config.get("jwtKey");
 userSchema.methods.generateAuthToken = function () {
-  return jwt.sign({ _id: this._id, name: this.name }, jwtKey);
+  return jwt.sign({ _id: this._id, name: this.name }, jwtKey, {
+    expiresIn: "24h",
+  });
 };
 
 userSchema.statics.register = async function (details, propertiesToPick) {

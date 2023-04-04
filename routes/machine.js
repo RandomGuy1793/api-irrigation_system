@@ -95,6 +95,8 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
       "thresholdMoisture",
       "soilMoisture",
       "isMotorOn",
+      "waterTankLog",
+      "soilMoistureLog",
     ])
   );
 });
@@ -166,7 +168,14 @@ router.get("/iot/get-motor-status", machineAuth, async (req, res) => {
 
 router.post("/iot/send-data", machineAuth, async (req, res) => {
   const err = validateIotData(
-    _.pick(req.body, ["waterLevel", "soilMoisture", "motorOn"])
+    _.pick(req.body, [
+      "waterLevel",
+      "soilMoisture0",
+      "soilMoisture1",
+      "soilMoisture2",
+      "soilMoisture3",
+      "motorOn",
+    ])
   );
   if (err) return res.status(400).send(err.details[0].message);
 

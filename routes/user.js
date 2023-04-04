@@ -25,7 +25,7 @@ router.post("/register", async (req, res) => {
   const newUser = await userModel.register(req.body, propertiesToPick);
   propertiesToPick.pop();
   const token = newUser.generateAuthToken();
-  res.header("x-auth-token", token).send(_.pick(newUser, propertiesToPick));
+  res.send(_.pick(newUser, propertiesToPick));
 });
 
 router.post("/login", async (req, res) => {
@@ -34,7 +34,7 @@ router.post("/login", async (req, res) => {
 
   const user = await userModel
     .findOne({ email: req.body.email })
-    .select("_id password name");
+    .select("_id password name email");
   if (!user) return res.status(400).send("invalid email or password");
   const isPasswordCorrect = await bcrypt.compare(
     req.body.password,
@@ -43,7 +43,7 @@ router.post("/login", async (req, res) => {
   if (!isPasswordCorrect)
     return res.status(400).send("invalid email or password");
   const token = user.generateAuthToken();
-  res.header("x-auth-token", token).send("login successful");
+  res.send({ token: token, name: user.name, email: user.email });
 });
 
 router.get("/", auth, async (req, res) => {

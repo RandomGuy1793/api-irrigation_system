@@ -23,12 +23,13 @@ const machineSchema = new mongoose.Schema({
     maxlength: 100,
     required: true,
   },
-  soilMoisture: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 50,
-  },
+  soilMoisture: [
+    {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+  ],
   isMotorOn: {
     type: Boolean,
     default: false,
@@ -37,7 +38,7 @@ const machineSchema = new mongoose.Schema({
     type: Number,
     min: -1,
     max: 100,
-    default: 50,
+    default: 30,
   },
   waterTankLevel: {
     type: Number,
@@ -55,7 +56,7 @@ const machineSchema = new mongoose.Schema({
             max: 100,
           },
         },
-        { timestamps: true }
+        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
       ),
     },
   ],
@@ -64,9 +65,8 @@ const machineSchema = new mongoose.Schema({
       type: new mongoose.Schema(
         {
           isMotorOn: Boolean,
-          createdAt: Date,
         },
-        { _id: false }
+        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
       ),
     },
   ],
@@ -79,9 +79,8 @@ const machineSchema = new mongoose.Schema({
             min: 0,
             max: 100,
           },
-          createdAt: Date,
         },
-        { _id: false }
+        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
       ),
     },
   ],
@@ -89,6 +88,7 @@ const machineSchema = new mongoose.Schema({
 
 machineSchema.statics.register = async function (details, propertiesToPick) {
   const newMachine = new this(_.pick(details, propertiesToPick));
+  newMachine.soilMoisture = [40, 40, 40, 40];
   newMachine.WaterTankLog = [];
   newMachine.motorLog = [];
   newMachine.soilMoistureLog = [];
@@ -109,7 +109,10 @@ machineSchema.methods.updateWaterTank = function (details) {
 };
 
 machineSchema.methods.updateSoilMoisture = function (details) {
-  this.soilMoisture = details.soilMoisture;
+  for (let i = 0; i < 4; i++) {
+    this.soilMoisture[i] = details[`soilMoisture${i}`];
+  }
+  const aggregatedMoisture = this.aggregateSoilMoisture();
   const len = this.soilMoistureLog.length;
   if (len > 0) {
     const d1 = new Date(this.soilMoistureLog[len - 1].createdAt),
@@ -117,14 +120,12 @@ machineSchema.methods.updateSoilMoisture = function (details) {
     const diff = d2 - d1;
     if (diff > logDiff) {
       this.soilMoistureLog.push({
-        moistureLevel: this.soilMoisture,
-        createdAt: new Date().toISOString(),
+        moistureLevel: aggregatedMoisture,
       });
     }
   } else {
     this.soilMoistureLog.push({
-      moistureLevel: this.soilMoisture,
-      createdAt: new Date().toISOString(),
+      moistureLevel: this.aggregatedMoisture,
     });
   }
 };
@@ -134,7 +135,6 @@ machineSchema.methods.updateMotorLog = function (details) {
     if (details[`motorOn`] === true) {
       this.motorLog.push({
         isMotorOn: details[`motorOn`],
-        createdAt: new Date().toISOString(),
       });
     }
   } else if (
@@ -142,16 +142,22 @@ machineSchema.methods.updateMotorLog = function (details) {
   ) {
     this.motorLog.push({
       isMotorOn: details[`motorOn`],
-      createdAt: new Date().toISOString(),
     });
   }
+};
+
+machineSchema.methods.aggregateSoilMoisture = function () {
+  let avg = 0;
+  for (let i = 0; i < 4; i++) avg += this.soilMoisture[i];
+  return avg / 4;
 };
 
 const machine = mongoose.model("machine", machineSchema);
 
 const updateMotorBasedOnThreshold = async (threshold, id) => {
-  const mach = await machine.findById(id).select("soilMoisture");
-  mach.isMotorOn = mach.soilMoisture < threshold;
+  const mach = await machine.findById(id).select("soilMoisture isMotorOn");
+  const aggregatedMoisture = mach.aggregateSoilMoisture();
+  mach.isMotorOn = aggregatedMoisture < threshold;
   await mach.save();
 };
 
@@ -170,7 +176,10 @@ function validateMotorThreshold(details, isAutoMode) {
 function validateIotData(details) {
   return Joi.object({
     waterLevel: Joi.number().min(0).max(100).required(),
-    soilMoisture: Joi.number().min(0).max(100).required(),
+    soilMoisture0: Joi.number().min(0).max(100).required(),
+    soilMoisture1: Joi.number().min(0).max(100).required(),
+    soilMoisture2: Joi.number().min(0).max(100).required(),
+    soilMoisture3: Joi.number().min(0).max(100).required(),
     motorOn: Joi.boolean().required(),
   }).validate(details).error;
 }
