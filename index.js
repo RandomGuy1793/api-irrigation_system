@@ -5,7 +5,7 @@ const config = require("config");
 const app = express();
 
 require("express-async-errors");
-require("./startup/db")();
+const connectDB = require("./startup/db");
 require("./startup/routes")(app);
 
 const httpsPORT = 3443;
@@ -20,5 +20,7 @@ const sslServer = https.createServer(
   app
 );
 
-sslServer.listen(httpsPORT);
-app.listen(process.env.PORT || 5000, () => console.log(`Server Active`));
+connectDB().then(() => {
+  sslServer.listen(httpsPORT);
+  app.listen(process.env.PORT || 5000, () => console.log(`Server Active`));
+});
