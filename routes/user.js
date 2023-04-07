@@ -53,7 +53,7 @@ router.get("/", auth, async (req, res) => {
   for (let i = 0; i < user.machines.length; i++) {
     const mach = await machineModel
       .findById(user.machines[i])
-      .select("name address _id");
+      .select("name address _id productKey");
     if (mach) {
       resObj.machines.push(mach);
     }
