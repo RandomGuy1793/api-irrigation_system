@@ -84,9 +84,11 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
   if (isUserAuthorized === false)
     return res.status(404).send("machine not found for the user");
 
-  const machine = await machineModel.findById(req.params.id);
+  let machine = await machineModel.findById(req.params.id);
   if (!machine) return res.status(404).send("machine unavailable");
 
+  await machine.consolidateMotorLog()
+  machine = await machineModel.findById(req.params.id);
   res.send(
     _.pick(machine, [
       "name",
@@ -94,6 +96,7 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
       "waterTankLevel",
       "thresholdMoisture",
       "soilMoisture",
+      "motorUsagePerDay",
       "isMotorOn",
       "waterTankLog",
       "soilMoistureLog",

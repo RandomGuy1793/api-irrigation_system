@@ -70,6 +70,20 @@ const machineSchema = new mongoose.Schema({
       ),
     },
   ],
+  motorUsagePerDay: [
+    {
+      type: new mongoose.Schema(
+        {
+          durationMinutes: {
+            type: Number,
+            min: 0,
+            max: 1440,
+          },
+        },
+        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
+      ),
+    },
+  ],
   soilMoistureLog: [
     {
       type: new mongoose.Schema(
@@ -91,6 +105,7 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
   newMachine.soilMoisture = [40, 40, 40, 40];
   newMachine.WaterTankLog = [];
   newMachine.motorLog = [];
+  newMachine.motorUsagePerDay = [];
   newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
@@ -151,6 +166,16 @@ machineSchema.methods.aggregateSoilMoisture = function () {
   for (let i = 0; i < 4; i++) avg += this.soilMoisture[i];
   return avg / 4;
 };
+
+machineSchema.methods.consolidateMotorLog=async function(){
+  const {motorLog}=this
+  const len=motorLog.len
+  for(let i=0; i<len/2*2; i++){
+    // todo
+  }
+  if(len%2!=0) this.motorLog=this.motorLog.slice(-1)  // save motor ON command
+  await this.save()
+}
 
 const machine = mongoose.model("machine", machineSchema);
 
