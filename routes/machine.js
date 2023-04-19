@@ -87,8 +87,11 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
   let machine = await machineModel.findById(req.params.id);
   if (!machine) return res.status(404).send("machine unavailable");
 
-  await machine.consolidateMotorLog()
-  machine = await machineModel.findById(req.params.id);
+  machine = machine.toObject();
+  changeDateToLocal(machine.soilMoistureLog, true);
+  changeDateToLocal(machine.waterTankLog, true);
+  changeDateToLocal(machine.motorUsagePerDay, false);
+
   res.send(
     _.pick(machine, [
       "name",
@@ -197,5 +200,15 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
   } else await mach.save();
   res.send("water level, soil moisture and motor status received successfully");
 });
+
+const changeDateToLocal = (arr, needTime) => {
+  arr.forEach((item, index) => {
+    const date = new Date(item.createdAt).toLocaleString("en-US", {
+      timeZone: "Asia/Kolkata",
+    });
+    if (!needTime) date = date.split(",")[0];
+    arr[index].createdAt = date;
+  });
+};
 
 module.exports = router;

@@ -170,7 +170,7 @@ machineSchema.methods.aggregateSoilMoisture = function () {
 machineSchema.methods.consolidateMotorLog=async function(){
   const {motorLog}=this
   const len=motorLog.len
-  for(let i=0; i<len/2*2; i++){
+  for(let i=0; i<len/2*2; i+=2){
     // todo
   }
   if(len%2!=0) this.motorLog=this.motorLog.slice(-1)  // save motor ON command
