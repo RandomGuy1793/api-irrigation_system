@@ -1,5 +1,6 @@
 const express = require("express");
 const _ = require("lodash");
+const moment = require("moment");
 
 const router = express.Router();
 
@@ -86,11 +87,11 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
 
   let machine = await machineModel.findById(req.params.id);
   if (!machine) return res.status(404).send("machine unavailable");
-
+  machine.consolidateMotorLog();
   machine = machine.toObject();
-  changeDateToLocal(machine.soilMoistureLog, true);
-  changeDateToLocal(machine.waterTankLog, true);
-  changeDateToLocal(machine.motorUsagePerDay, false);
+  changeDatesToLocal(machine.soilMoistureLog, true);
+  changeDatesToLocal(machine.waterTankLog, true);
+  changeDatesToLocal(machine.motorUsagePerDay, false);
 
   res.send(
     _.pick(machine, [
@@ -201,12 +202,11 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
   res.send("water level, soil moisture and motor status received successfully");
 });
 
-const changeDateToLocal = (arr, needTime) => {
+const changeDatesToLocal = (arr, needTime) => {
   arr.forEach((item, index) => {
-    const date = new Date(item.createdAt).toLocaleString("en-US", {
-      timeZone: "Asia/Kolkata",
-    });
-    if (!needTime) date = date.split(",")[0];
+    let date = moment(item.createdAt).utcOffset("+05:30");
+    if (!needTime) date = date.format("DD/MM/YYYY");
+    else date = date.format("DD/MM/YYYY, hh:mm a");
     arr[index].createdAt = date;
   });
 };
