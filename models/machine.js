@@ -216,7 +216,9 @@ const updateMotorBasedOnThreshold = async (threshold, id) => {
   const mach = await machine.findById(id).select("soilMoisture isMotorOn");
   const aggregatedMoisture = mach.aggregateSoilMoisture();
   mach.isMotorOn = aggregatedMoisture < threshold;
+  const motorStatus=mach.isMotorOn
   await mach.save();
+  return motorStatus
 };
 
 function validateMotorThreshold(details, isAutoMode) {

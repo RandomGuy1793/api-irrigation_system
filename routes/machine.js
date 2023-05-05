@@ -128,12 +128,12 @@ router.put(
     machine.thresholdMoisture = req.body.thresholdMoisture;
     await machine.save();
     if (machine.waterTankLevel <= 10)
-      return res.send("threshold updated.\nmotors off due to low tank water");
-    await updateMotorBasedOnThreshold(
+      return res.send({isMotorOn: machine.isMotorOn});
+    const motorStatus=await updateMotorBasedOnThreshold(
       req.body.thresholdMoisture,
       req.params.id
     );
-    res.send("motors updated successfully");
+    res.send({isMotorOn: motorStatus});
   }
 );
 
@@ -161,7 +161,7 @@ router.put(
     }
     machine.isMotorOn = req.body.motorOn;
     await machine.save();
-    res.send("motors updated successfully");
+    res.send({isMotorOn:req.body.motorOn});
   }
 );
 
