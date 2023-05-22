@@ -41,26 +41,6 @@ const machineSchema = new mongoose.Schema({
     max: 100,
     default: 30,
   },
-  waterTankLevel: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 50,
-  },
-  waterTankLog: [
-    {
-      type: new mongoose.Schema(
-        {
-          waterLevel: {
-            type: Number,
-            min: 0,
-            max: 100,
-          },
-        },
-        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
-      ),
-    },
-  ],
   motorLog: [
     {
       type: new mongoose.Schema(
@@ -105,24 +85,11 @@ const machineSchema = new mongoose.Schema({
 machineSchema.statics.register = async function (details, propertiesToPick) {
   const newMachine = new this(_.pick(details, propertiesToPick));
   newMachine.soilMoisture = [40, 40, 40, 40];
-  newMachine.WaterTankLog = [];
   newMachine.motorLog = [];
   newMachine.motorUsagePerDay = [];
   newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
-};
-
-machineSchema.methods.updateWaterTank = function (details) {
-  this.waterTankLevel = details.waterLevel;
-  const len = this.waterTankLog.length;
-  if (len > 0) {
-    const d1 = new Date(this.waterTankLog[len - 1].createdAt),
-      d2 = new Date();
-    const diff = d2.valueOf() - d1.valueOf();
-    if (diff > logDiff)
-      this.waterTankLog.push({ waterLevel: details.waterLevel });
-  } else this.waterTankLog.push({ waterLevel: details.waterLevel });
 };
 
 machineSchema.methods.updateSoilMoisture = function (details) {
@@ -142,7 +109,7 @@ machineSchema.methods.updateSoilMoisture = function (details) {
     }
   } else {
     this.soilMoistureLog.push({
-      moistureLevel: this.aggregatedMoisture,
+      moistureLevel: aggregatedMoisture,
     });
   }
 };
@@ -216,9 +183,9 @@ const updateMotorBasedOnThreshold = async (threshold, id) => {
   const mach = await machine.findById(id).select("soilMoisture isMotorOn");
   const aggregatedMoisture = mach.aggregateSoilMoisture();
   mach.isMotorOn = aggregatedMoisture < threshold;
-  const motorStatus=mach.isMotorOn
+  const motorStatus = mach.isMotorOn;
   await mach.save();
-  return motorStatus
+  return motorStatus;
 };
 
 function validateMotorThreshold(details, isAutoMode) {
@@ -235,7 +202,6 @@ function validateMotorThreshold(details, isAutoMode) {
 
 function validateIotData(details) {
   return Joi.object({
-    waterLevel: Joi.number().min(0).max(100).required(),
     soilMoisture0: Joi.number().min(0).max(100).required(),
     soilMoisture1: Joi.number().min(0).max(100).required(),
     soilMoisture2: Joi.number().min(0).max(100).required(),

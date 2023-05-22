@@ -90,19 +90,16 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
   machine.consolidateMotorLog();
   machine = machine.toObject();
   changeDatesToLocal(machine.soilMoistureLog, true);
-  changeDatesToLocal(machine.waterTankLog, true);
   changeDatesToLocal(machine.motorUsagePerDay, false);
 
   res.send(
     _.pick(machine, [
       "name",
       "address",
-      "waterTankLevel",
       "thresholdMoisture",
       "soilMoisture",
       "motorUsagePerDay",
       "isMotorOn",
-      "waterTankLog",
       "soilMoistureLog",
     ])
   );
@@ -127,13 +124,11 @@ router.put(
 
     machine.thresholdMoisture = req.body.thresholdMoisture;
     await machine.save();
-    if (machine.waterTankLevel <= 10)
-      return res.send({isMotorOn: machine.isMotorOn});
-    const motorStatus=await updateMotorBasedOnThreshold(
+    const motorStatus = await updateMotorBasedOnThreshold(
       req.body.thresholdMoisture,
       req.params.id
     );
-    res.send({isMotorOn: motorStatus});
+    res.send({ isMotorOn: motorStatus });
   }
 );
 
@@ -155,13 +150,9 @@ router.put(
     if (error) return res.status(400).send(error.details[0].message);
 
     machine.thresholdMoisture = -1;
-    if (machine.waterTankLevel <= 10) {
-      await machine.save();
-      return res.status(403).send("can't turn on motor.\nTank water low");
-    }
     machine.isMotorOn = req.body.motorOn;
     await machine.save();
-    res.send({isMotorOn:req.body.motorOn});
+    res.send({ isMotorOn: req.body.motorOn });
   }
 );
 
@@ -176,7 +167,6 @@ router.get("/iot/get-motor-status", machineAuth, async (req, res) => {
 router.post("/iot/send-data", machineAuth, async (req, res) => {
   const err = validateIotData(
     _.pick(req.body, [
-      "waterLevel",
       "soilMoisture0",
       "soilMoisture1",
       "soilMoisture2",
@@ -188,18 +178,14 @@ router.post("/iot/send-data", machineAuth, async (req, res) => {
 
   const mach = await machineModel.findOne({ productKey: req.body.productKey });
   if (!mach) return res.status(404).send("machine unavailable");
-  mach.updateWaterTank(req.body);
   mach.updateSoilMoisture(req.body);
   mach.updateMotorLog(req.body);
+  await mach.save();
 
-  if (req.body.waterLevel <= 10) {
-    mach.isMotorOn = false;
-    await mach.save();
-  } else if (mach.thresholdMoisture >= 0) {
-    await mach.save();
+  if (mach.thresholdMoisture >= 0) {
     await updateMotorBasedOnThreshold(mach.thresholdMoisture, mach._id);
-  } else await mach.save();
-  res.send("water level, soil moisture and motor status received successfully");
+  }
+  res.send("soil moisture and motor status received successfully");
 });
 
 const changeDatesToLocal = (arr, needTime) => {
