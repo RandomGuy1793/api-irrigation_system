@@ -3,8 +3,6 @@ const Joi = require("joi");
 const _ = require("lodash");
 const moment = require("moment");
 
-const logDiff = 3e5; // time diff.in millis
-
 const machineSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -73,7 +71,6 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
   newMachine.soilMoisture = [40, 40, 40, 40];
   newMachine.motorLog = [];
   newMachine.motorUsagePerDay = [];
-  newMachine.soilMoistureLog = [];
   await newMachine.save();
   return newMachine;
 };
@@ -81,22 +78,6 @@ machineSchema.statics.register = async function (details, propertiesToPick) {
 machineSchema.methods.updateSoilMoisture = function (details) {
   for (let i = 0; i < 4; i++) {
     this.soilMoisture[i] = details[`soilMoisture${i}`];
-  }
-  const aggregatedMoisture = this.aggregateSoilMoisture();
-  const len = this.soilMoistureLog.length;
-  if (len > 0) {
-    const d1 = new Date(this.soilMoistureLog[len - 1].createdAt),
-      d2 = new Date();
-    const diff = d2 - d1;
-    if (diff > logDiff) {
-      this.soilMoistureLog.push({
-        moistureLevel: aggregatedMoisture,
-      });
-    }
-  } else {
-    this.soilMoistureLog.push({
-      moistureLevel: aggregatedMoisture,
-    });
   }
 };
 
