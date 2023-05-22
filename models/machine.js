@@ -66,20 +66,6 @@ const machineSchema = new mongoose.Schema({
       ),
     },
   ],
-  soilMoistureLog: [
-    {
-      type: new mongoose.Schema(
-        {
-          moistureLevel: {
-            type: Number,
-            min: 0,
-            max: 100,
-          },
-        },
-        { _id: false, timestamps: { createdAt: true, updatedAt: false } }
-      ),
-    },
-  ],
 });
 
 machineSchema.statics.register = async function (details, propertiesToPick) {

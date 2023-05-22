@@ -89,7 +89,6 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
   if (!machine) return res.status(404).send("machine unavailable");
   machine.consolidateMotorLog();
   machine = machine.toObject();
-  changeDatesToLocal(machine.soilMoistureLog, true);
   changeDatesToLocal(machine.motorUsagePerDay, false);
 
   res.send(
@@ -100,7 +99,6 @@ router.get("/:id", [auth, validateObjId], async (req, res) => {
       "soilMoisture",
       "motorUsagePerDay",
       "isMotorOn",
-      "soilMoistureLog",
     ])
   );
 });
