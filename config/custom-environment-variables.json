@@ -1,6 +1,5 @@
 {
     "jwtKey": "irrigation_system_jwtKey",
     "mongoDb": "irrigation_system_mongoDb",
-    "sslCert": "irrigation_system_cert",
     "sslKey": "irrigation_system_key"
   }
